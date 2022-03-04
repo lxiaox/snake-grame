@@ -11,7 +11,12 @@
       box-sizing: border-box;
     }
 
-    .ground {}
+    body {
+      display: flex;
+      justify-content: center;
+      padding-top: 30px;
+      background-color: blanchedalmond;
+    }
 
     .row {}
 
@@ -58,7 +63,7 @@
   <script>
     // 初始化
     const groundEle = document.getElementById('ground')
-    const groundRow = 10, groundLine = 10
+    const groundRow = 15, groundLine = 15
     let snake, egg, timer, movekey
     createGround(groundEle, groundRow, groundLine)
     createSnake()
