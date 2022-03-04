@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    div {
+      box-sizing: border-box;
+    }
+
+    .ground {}
+
+    .row {}
+
+    .cell {
+      width: 30px;
+      height: 30px;
+      background: rgb(128, 200, 60);
+      float: left;
+      border: 1px solid #eee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .clearfix::after {
+      display: block;
+      content: '';
+      clear: both;
+    }
+
+    .egg {
+      width: 66%;
+      height: 85%;
+      border-radius: 50%/ 55% 55% 45% 45%;
+      /* border-radius: 50%; */
+      background: rgb(248, 155, 4);
+    }
+
+    .snake {
+      width: 80%;
+      height: 80%;
+      border-radius: 10%;
+      background: rgb(251, 143, 2);
+    }
+
+    .snake-head {
+      background: rgb(246, 113, 4);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="ground"></div>
+  <script>
+    // 初始化
+    const groundEle = document.getElementById('ground')
+    const groundRow = 10, groundLine = 10
+    let snake, egg, timer, movekey
+    createGround(groundEle, groundRow, groundLine)
+    createSnake()
+    createEgg()
+    // 监听按键
+    window.addEventListener('keyup', (event) => {
+      // 提前处理后退
+      const arr = ['ArrowLeftArrowRight', 'ArrowRightArrowLeft', 'ArrowUpArrowDown', 'ArrowDownArrowUp']
+      if (snake.length > 1 && arr.indexOf(moveKey + event.key) > -1) {
+        // alert('不能后退，换个方向')
+        return
+      }
+      if (timer) {
+        clearInterval(timer)
+      }
+      moveKey = event.key
+
+      // moveSnake(moveKey) 
+      // timer = setInterval(() => {
+      //   moveSnake(moveKey)
+      // }, 1000)
+      // 这里有个问题，就是多按几次上下左右移动蛇撞墙，重新开始游戏之后，定时器并没有消除，蛇还在继续移动；还有’换个方向‘也会不断弹出。
+      // 经过log分析，是因为先执行moveSnake，撞墙了马上执行restart里面的clearInterval，再来执行下面几行代码，又创建了计时器，
+
+
+      //方法一
+      // 去掉第一次执行moveSnake()
+      // 问题是要等1s蛇才会动
+
+      // 方法二：改用setTimeout模拟SetInterval，做到按键不延迟
+      // let cb = () => {
+      //   moveSnake(moveKey)
+      //   timer = setTimeout(cb, 1000)
+      // }
+      // timer = setTimeout(cb)
+      // 这种方法可以按下立刻执行，但moveSnake还是在setTmeout之前，无法清除计时器
+
+      // 方法三 给moveSnake返回true，根据返回结果判断要不要执行后面的设置计时器
+      let ifStop = moveSnake(event.key)
+      if (!ifStop) {
+        timer = setInterval(() => {
+          moveSnake(event.key)
+        }, 300)
+      }
+      // 有个问题就是蛇后退触发‘换个方向’之后，计时器也停止了。
+      // 解决1：ifStop取值新增两个标志stop/last,但是有奇怪的bug
+      // 解决二：提前判断方向，不允许后退
+
+    })
+
+    /************** 工具函数 ****************/
+    // 创建场地
+    function createGround(el, r, l) {
+      const row = document.createElement('div')
+      row.className = 'row clearfix'
+      const cell = document.createElement('div')
+      cell.className = 'cell'
+      for (let i = 0; i < r; i++) {
+        row.appendChild(cell.cloneNode(true))
+      }
+      for (let i = 0; i < l; i++) {
+        el.appendChild(row.cloneNode(true))
+      }
+    }
+
+    // 生成随机坐标
+    function createRandomPoint(r = groundRow, l = groundLine) {
+      const R = Math.floor(Math.random() * r)
+      const L = Math.floor(Math.random() * l)
+      return { r: R, l: L }
+    }
+
+    // 生成蛇
+    function createSnake() {
+      snake = []
+      snake[0] = createRandomPoint()
+      snake.forEach((item, index) => {
+        let htmlStr = `<div class='snake'></div>`
+        if (index === 0) {
+          htmlStr = `<div class='snake snake-head'></div>`
+        }
+        groundEle.children[item.r].children[item.l].innerHTML = htmlStr
+      })
+    }
+
+    // 生成蛋
+    function createEgg() {
+      if (egg) groundEle.children[egg.r].children[egg.l].innerHTML = ''
+
+      egg = createRandomPoint()
+      // 处理蛋和蛇重叠的可能
+      function testEgg() {
+        for (let item of snake) {
+          if (item.r === egg.r && item.l === egg.l) {
+            egg = createRandomPoint()
+            testEgg()
+            return
+          }
+        }
+      }
+      testEgg()
+      groundEle.children[egg.r].children[egg.l].innerHTML = `<div class='egg'></div>`
+    }
+
+    // 移动蛇
+    function moveSnake(key) {
+      switch (key) {
+        case 'ArrowUp':
+          return move('r', 0, '-')
+        case 'ArrowDown':
+          return move('r', groundLine - 1, '+')
+        case 'ArrowLeft':
+          return move('l', 0, '-')
+        case 'ArrowRight':
+          return move('l', groundLine - 1, '+')
+      }
+    }
+
+    // 处理蛇移动的事件
+    function move(prop, limit, operation) {
+      const head = snake[0]
+      // 判断撞墙
+      if (head[prop] === limit) {
+        alert('撞墙，游戏失败，重新开始')
+        restart()
+        return true
+      }
+      // 新的头
+      newHead = { ...head }
+      newHead[prop] = operation === '+' ? head[prop] + 1 : head[prop] - 1
+      // 处理蛇后退，因为前面监听按键增加了判断，这里就不需要了
+      // if (snake[1] && snake[1].r === newHead.r && snake[1].l === newHead.l) {
+      //   alert('不能后退，换个方向')
+      //   return true
+      // }
+      // 处理蛇咬到自身
+      for (let item of snake) {
+        if (item.r === newHead.r && item.l === newHead.l) {
+          alert('咬到自己，游戏失败，重新开始')
+          restart()
+          return true
+        }
+      }
+      // 数组添加新头
+      snake.unshift(newHead)
+      // 处理吃蛋，如果吃到蛋，重新生成蛋，再添加新头
+      if (newHead.r === egg.r && newHead.l === egg.l) {
+        egg = null
+        createEgg()
+      } else {
+        // 如果没有吃到蛋，要去掉蛇尾，添加新头
+        let tail = snake.pop()
+        groundEle.children[tail.r].children[tail.l].innerHTML = ''
+      }
+      // 添加新头到页面
+      groundEle.children[newHead.r].children[newHead.l].innerHTML = `<div class='snake snake-head'></div>`
+      // 去除旧头样式
+      if (snake.length > 1) {
+        groundEle.children[head.r].children[head.l].children[0].classList.remove('snake-head')
+      }
+
+    }
+
+    // 重新开始游戏
+    function restart() {
+      if (timer) {
+        clearInterval(timer)
+      }
+      createEgg()
+      cleanSnake(snake)
+      createSnake()
+    }
+
+    // 清除蛇--重新开始游戏需要
+    function cleanSnake(snake) {
+      snake.forEach((item, index) => {
+        groundEle.children[item.r].children[item.l].innerHTML = ''
+      })
+    }
+  </script>
+</body>
+
+</html>
